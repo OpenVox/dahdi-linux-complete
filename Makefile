@@ -7,7 +7,8 @@
 
 all:
 	$(MAKE) -C linux all
-	(cd tools && autoreconf -i && [ -f config.status ] || ./configure --with-dahdi=../linux)
+	(cd tools && autoreconf -i && [ -f config.status ] || (aclocal && autoconf && automake --add-missing && ./configure --with-dahdi=../linux) \
+	|| ./configure --with-dahdi=../linux )
 	$(MAKE) -C tools all
 
 clean:
@@ -26,5 +27,6 @@ install: all
 
 install-config: install
 	$(MAKE) -C tools install-config
+	[ -x /usr/sbin/dahdi_genconf ] && dahdi_genconf modules
 
 .PHONY: all clean distclean dist-clean install config
