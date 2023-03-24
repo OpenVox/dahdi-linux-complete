@@ -15,7 +15,7 @@
 /.pc
 
 build_tools/menuselect-deps
-
+autom4te.cache/
 
 
 config.log
