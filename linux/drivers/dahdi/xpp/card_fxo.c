@@ -26,7 +26,6 @@
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <dahdi/kernel.h>
 #include "xpd.h"
 #include "xproto.h"
 #include "xpp_dahdi.h"
@@ -108,18 +107,13 @@ enum fxo_leds {
 static bool fxo_packet_is_valid(xpacket_t *pack);
 static void fxo_packet_dump(const char *msg, xpacket_t *pack);
 #ifdef CONFIG_PROC_FS
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
-static const struct file_operations proc_fxo_info_ops;
-#else
+#ifdef DAHDI_HAVE_PROC_OPS
 static const struct proc_ops proc_fxo_info_ops;
-#endif
-
-#ifdef	WITH_METERING
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
-static const struct file_operations proc_xpd_metering_ops;
 #else
-static const struct proc_ops proc_xpd_metering_ops;
+static const struct file_operations proc_fxo_info_ops;
 #endif
+#ifdef	WITH_METERING
+static const struct proc_ops proc_xpd_metering_ops;
 #endif
 #endif
 static void dahdi_report_battery(xpd_t *xpd, lineno_t chan);
@@ -1494,20 +1488,20 @@ static int proc_fxo_info_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_fxo_info_show, PDE_DATA(inode));
 }
 
-#ifndef DAHDI_HAVE_PROC_OPS
-static const struct file_operations proc_fxo_info_ops = {
-	.owner		= THIS_MODULE,
-	.open		= proc_fxo_info_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-#else
+#ifdef DAHDI_HAVE_PROC_OPS
 static const struct proc_ops proc_fxo_info_ops = {
 	.proc_open		= proc_fxo_info_open,
 	.proc_read		= seq_read,
 	.proc_lseek		= seq_lseek,
-	.proc_release	= single_release,
+	.proc_release		= single_release,
+};
+#else
+static const struct file_operations proc_fxo_info_ops = {
+	.owner			= THIS_MODULE,
+	.open			= proc_fxo_info_open,
+	.read			= seq_read,
+	.llseek			= seq_lseek,
+	.release		= single_release,
 };
 #endif
 
@@ -1540,7 +1534,6 @@ static int proc_xpd_metering_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_xpd_metering_show, PDE_DATA(inode));
 }
 
-#ifndef DAHDI_HAVE_PROC_OPS
 static const struct file_operations proc_xpd_metering_ops = {
 	.owner		= THIS_MODULE,
 	.open		= proc_xpd_metering_open,
@@ -1548,14 +1541,7 @@ static const struct file_operations proc_xpd_metering_ops = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
-#else
-static const struct proc_ops proc_xpd_metering_ops = {	
-	.proc_open		= proc_xpd_metering_open,
-	.proc_read		= seq_read,
-	.proc_lseek		= seq_lseek,
-	.proc_release	= single_release,
-};
-#endif
+
 #endif
 #endif
 

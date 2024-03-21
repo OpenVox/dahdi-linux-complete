@@ -42,7 +42,6 @@
 #include <linux/crc32.h>
 #include <linux/slab.h>
 
-//#include <stdbool.h>
 #include <dahdi/kernel.h>
 
 #include "wct4xxp.h"
@@ -86,6 +85,12 @@
  *
  */
 /* #define CONFIG_WCT4XXP_DISABLE_ASPM */
+
+#ifdef CONFIG_WCT4XXP_DISABLE_ASPM
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
+#include <linux/pci-aspm.h>
+#endif
+#endif
 
 #if defined(CONFIG_FORCE_EXTENDED_RESET) && defined(CONFIG_NOEXTENDED_RESET)
 #error "You cannot define both CONFIG_FORCE_EXTENDED_RESET and " \
@@ -5353,7 +5358,7 @@ static void _t4_remove_one(struct t4 *wc)
 	pci_release_regions(wc->dev);
 	
 	/* Immediately free resources */
-	pci_free_consistent(wc->dev, T4_BASE_SIZE(wc) * wc->numbufs * 2,
+	dma_free_coherent(&wc->dev->dev, T4_BASE_SIZE(wc) * wc->numbufs * 2,
 			    wc->writechunk, wc->writedma);
 	
 	order_index[wc->order]--;

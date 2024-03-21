@@ -36,13 +36,6 @@
 #include <linux/crc32.h>
 #include <dahdi/kernel.h>
 
-/* Linux kernel 5.16 and greater has removed user-space headers from the kernel include path */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
-#include <asm/types.h>
-#else
-#include <stdbool.h>
-#endif
-
 #include "wct4xxp/wct4xxp.h"	/* For certain definitions */
 #include "wcxb.h"
 #include "wcxb_spi.h"
@@ -2707,10 +2700,11 @@ static int __devinit te13xp_init_one(struct pci_dev *pdev,
 	return 0;
 
 fail_exit:
-	if (&wc->xb)
+	/* As (&wc->xb) can never be null therefore check if wc is not null then release xb and free wc */
+	if (wc) {
 		wcxb_release(&wc->xb);
-
-	free_wc(wc);
+		free_wc(wc);
+	}
 	return res;
 }
 

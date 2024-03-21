@@ -103,10 +103,10 @@ int total_registered_spans(void)
 }
 
 #ifdef	CONFIG_PROC_FS
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
-static const struct file_operations xpd_read_proc_ops;
-#else
+#ifdef DAHDI_HAVE_PROC_OPS
 static const struct proc_ops xpd_read_proc_ops;
+#else
+static const struct file_operations xpd_read_proc_ops;
 #endif
 #endif
 
@@ -396,22 +396,23 @@ static int xpd_read_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, xpd_read_proc_show, PDE_DATA(inode));
 }
 
-#ifndef DAHDI_HAVE_PROC_OPS
-static const struct file_operations xpd_read_proc_ops = {
-	.owner		= THIS_MODULE,
-	.open		= xpd_read_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-#else
+#ifdef DAHDI_HAVE_PROC_OPS
 static const struct proc_ops xpd_read_proc_ops = {
 	.proc_open		= xpd_read_proc_open,
 	.proc_read		= seq_read,
 	.proc_lseek		= seq_lseek,
-	.proc_release	= single_release,
+	.proc_release		= single_release,
+};
+#else
+static const struct file_operations xpd_read_proc_ops = {
+	.owner			= THIS_MODULE,
+	.open			= xpd_read_proc_open,
+	.read			= seq_read,
+	.llseek			= seq_lseek,
+	.release		= single_release,
 };
 #endif
+
 #endif
 
 const char *xpd_statename(enum xpd_state st)

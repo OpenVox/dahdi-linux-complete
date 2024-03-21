@@ -58,6 +58,51 @@
 
 #include <linux/poll.h>
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+#define netif_napi_add netif_napi_add_weight
+#endif
+
+/* Linux kernel 5.16 and greater has removed user-space headers from the kernel include path */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)
+#include <asm/types.h>
+#elif defined(RHEL_RELEASE_CODE) && LINUX_VERSION_CODE >= KERNEL_VERSION(5,14,0) && \
+              RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9,1)
+#include <asm/types.h>
+#else
+#include <stdbool.h>
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0)
+#include <linux/pci.h>
+#include <linux/dma-mapping.h>
+
+static inline void *pci_alloc_consistent(struct pci_dev *hwdev, size_t size, dma_addr_t *dma_handle)
+{
+    return dma_alloc_coherent(hwdev == NULL ? NULL : &hwdev->dev, size, dma_handle, GFP_ATOMIC);
+}
+
+static inline void pci_free_consistent(struct pci_dev *hwdev, size_t size, void *vaddr, dma_addr_t dma_handle)
+{
+    dma_free_coherent(hwdev == NULL ? NULL : &hwdev->dev, size, vaddr, dma_handle);
+}
+
+static inline dma_addr_t pci_map_single(struct pci_dev *hwdev, void *ptr, size_t size, int direction)
+{
+    return dma_map_single(&hwdev->dev, ptr, size, (enum dma_data_direction)direction);
+}
+
+static inline void pci_unmap_single(struct pci_dev *hwdev, dma_addr_t dma_addr, size_t size, int direction)
+{
+    dma_unmap_single(&hwdev->dev, dma_addr, size, (enum dma_data_direction)direction);
+}
+
+static inline int pci_set_dma_mask(struct pci_dev *dev, u64 mask)
+{
+    return dma_set_mask(&dev->dev, mask);
+}
+
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)
 #define HAVE_NET_DEVICE_OPS
 #endif
@@ -1372,14 +1417,37 @@ static inline short dahdi_txtone_nextsample(struct dahdi_chan *ss)
 /*! Maximum audio mask */
 #define DAHDI_FORMAT_AUDIO_MASK	((1 << 16) - 1)
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(6,5,12)
+#undef flush_scheduled_work
+#define flush_scheduled_work()				\
+({							\
+	if (0)						\
+		__warn_flushing_systemwide_wq();	\
+	__flush_workqueue(system_wq);			\
+})
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0)
 
 #undef DAHDI_HAVE_PROC_OPS
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
+#if __has_attribute(__fallthrough__)
+# define fallthrough                    __attribute__((__fallthrough__))
+#else
+# define fallthrough                    do {} while (0)  /* fallthrough */
+#endif
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
+#undef TIMER_DATA_TYPE
+#define TIMER_DATA_TYPE struct timer_list *
+#else
 #ifndef TIMER_DATA_TYPE
 #define TIMER_DATA_TYPE unsigned long
+#endif
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)
@@ -1489,10 +1557,16 @@ static inline void *PDE_DATA(const struct inode *inode)
 #endif /* 4.15.0 */
 #endif /* 5.6 */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 14, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
 #ifdef CONFIG_PROC_FS
 #define PDE_DATA(i)	pde_data(i)
 #endif
+#endif
+
+#if defined(RHEL_RELEASE_CODE) && LINUX_VERSION_CODE >= KERNEL_VERSION(5,14,0) && \
+              RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9,1)
+#define netif_napi_add netif_napi_add_weight
+#define PDE_DATA(i)     pde_data(i)
 #endif
 
 #ifndef TIMER_DATA_TYPE

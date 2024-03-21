@@ -94,12 +94,11 @@ static void print_buffer(const char *msg, const char *buf, int len)
 	printk("\n");
 }
 
-static void update_counter(struct counter *c, ktime_t *tv1)
+static void update_counter(struct counter *c, struct timeval *tv1)
 {
-	ktime_t tv2;
-	
+	struct timeval tv2;
 	long diff;
-	tv2 = ktime_get();
+	do_gettimeofday(&tv2);
 	diff = usec_diff(&tv2, tv1);
 	if (c->intr_min > diff)
 		c->intr_min = diff;
@@ -117,9 +116,9 @@ static irqreturn_t xpp_mmap_rx_irq(int irq, void *dev_id)
 	xframe_t *xframe;
 	__u8 *buf;
 	bool in_use = 0;
-	ktime_t tv1;
+	struct timeval tv1;
 
-	tv1 = ktime_get();
+	do_gettimeofday(&tv1);
 	if (unlikely(disconnecting))
 		return IRQ_HANDLED;
 
@@ -153,7 +152,7 @@ static irqreturn_t xpp_mmap_rx_irq(int irq, void *dev_id)
 	}
 	buf = xframe->packets;
 	atomic_set(&xframe->frame_len, rxcnt);
-	xframe->tv_received = ktime_get();
+	do_gettimeofday(&xframe->tv_received);
 #ifdef	DEBUG_VIA_GPIO
 	if (rx_intr_counter & 1)
 		bfin_write_PORTGIO_SET(DEBUG_GPIO1);
@@ -222,9 +221,9 @@ static irqreturn_t xpp_mmap_tx_irq(int irq, void *dev_id)
 	unsigned long flags;
 	xbus_t *xbus;
 	xframe_t *xframe;
-	ktime_t tv1;
+	struct timeval tv1;
 
-	tv1 = ktime_get();
+	do_gettimeofday(&tv1);
 	if (unlikely(disconnecting)) {
 		update_counter(&tx_counter, &tv1);
 		return IRQ_HANDLED;

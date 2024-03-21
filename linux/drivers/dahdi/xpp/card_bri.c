@@ -27,7 +27,6 @@
 #include <linux/fs.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
-#include <dahdi/kernel.h>
 #include "xpd.h"
 #include "xproto.h"
 #include "xpp_dahdi.h"
@@ -154,10 +153,10 @@ static int write_state_register(xpd_t *xpd, __u8 value);
 static bool bri_packet_is_valid(xpacket_t *pack);
 static void bri_packet_dump(const char *msg, xpacket_t *pack);
 #ifdef	CONFIG_PROC_FS
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
-static const struct file_operations proc_bri_info_ops;
-#else
+#ifdef DAHDI_HAVE_PROC_OPS
 static const struct proc_ops proc_bri_info_ops;
+#else
+static const struct file_operations proc_bri_info_ops;
 #endif
 #endif
 static int bri_spanconfig(struct file *file, struct dahdi_span *span,
@@ -1745,23 +1744,22 @@ static int proc_bri_info_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_bri_info_show, PDE_DATA(inode));
 }
 
-#ifndef DAHDI_HAVE_PROC_OPS
-static const struct file_operations proc_bri_info_ops = {
-	.owner		= THIS_MODULE,
-	.open		= proc_bri_info_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-#else
+#ifdef DAHDI_HAVE_PROC_OPS
 static const struct proc_ops proc_bri_info_ops = {
 	.proc_open		= proc_bri_info_open,
 	.proc_read		= seq_read,
 	.proc_lseek		= seq_lseek,
-	.proc_release	= single_release,
+	.proc_release		= single_release,
 };
-#endif
-
+#else
+static const struct file_operations proc_bri_info_ops = {
+	.owner			= THIS_MODULE,
+	.open			= proc_bri_info_open,
+	.read			= seq_read,
+	.llseek			= seq_lseek,
+	.release		= single_release,
+};
+#endif /* DAHDI_HAVE_PROC_OPS */
 #endif
 
 static int bri_xpd_probe(struct device *dev)

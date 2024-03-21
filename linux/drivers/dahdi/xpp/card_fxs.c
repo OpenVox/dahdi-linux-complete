@@ -25,7 +25,6 @@
 #include <linux/fs.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
-#include <dahdi/kernel.h>
 #include "xpd.h"
 #include "xproto.h"
 #include "xpp_dahdi.h"
@@ -161,15 +160,16 @@ enum neon_state {
 static bool fxs_packet_is_valid(xpacket_t *pack);
 static void fxs_packet_dump(const char *msg, xpacket_t *pack);
 #ifdef CONFIG_PROC_FS
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
-static const struct file_operations proc_fxs_info_ops;
-#ifdef	WITH_METERING
-static const struct file_operations proc_xpd_metering_ops;
-#endif
-#else
+#ifdef DAHDI_HAVE_PROC_OPS
 static const struct proc_ops proc_fxs_info_ops;
+#else
+static const struct file_operations proc_fxs_info_ops;
+#endif
 #ifdef	WITH_METERING
+#ifdef DAHDI_HAVE_PROC_OPS
 static const struct proc_ops proc_xpd_metering_ops;
+#else
+static const struct file_operations proc_xpd_metering_ops;
 #endif
 #endif
 #endif
@@ -196,11 +196,7 @@ struct FXS_priv_data {
 	xpp_line_t neon_blinking;
 	xpp_line_t neonstate;
 	xpp_line_t vbat_h;		/* High voltage */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0)
-	struct timeval prev_key_time[CHANNELS_PERXPD];
-#else	
 	ktime_t prev_key_time[CHANNELS_PERXPD];
-#endif	
 	int led_counter[NUM_LEDS][CHANNELS_PERXPD];
 	int overheat_reset_counter[CHANNELS_PERXPD];
 	int ohttimer[CHANNELS_PERXPD];
@@ -1693,12 +1689,7 @@ static void process_hookstate(xpd_t *xpd, xpp_line_t offhook,
 			 * Reset our previous DTMF memories...
 			 */
 			BIT_CLR(priv->prev_key_down, i);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0)
-			priv->prev_key_time[i].tv_sec =
-			    priv->prev_key_time[i].tv_usec = 0L;
-#else
 			priv->prev_key_time[i] = ktime_set(0L, 0UL);
-#endif			
 			if (IS_SET(offhook, i)) {
 				LINE_DBG(SIGNAL, xpd, i, "OFFHOOK\n");
 				MARK_ON(priv, i, LED_GREEN);
@@ -1811,14 +1802,9 @@ static void process_dtmf(xpd_t *xpd, uint portnum, __u8 val)
 	bool want_mute;
 	bool want_event;
 	struct FXS_priv_data *priv;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0)	
-	struct timeval now;
-	int msec = 0;
-#else	
 	ktime_t now;
 	s64 msec = 0;
 	struct timespec64 ts;
-#endif
 
 	if (!dtmf_detection)
 		return;
@@ -1835,18 +1821,6 @@ static void process_dtmf(xpd_t *xpd, uint portnum, __u8 val)
 		BIT_SET(priv->prev_key_down, portnum);
 	else
 		BIT_CLR(priv->prev_key_down, portnum);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0)
-	do_gettimeofday(&now);
-	if (priv->prev_key_time[portnum].tv_sec != 0)
-		msec = usec_diff(&now, &priv->prev_key_time[portnum]) / 1000;
-	priv->prev_key_time[portnum] = now;
-	LINE_DBG(SIGNAL, xpd, portnum,
-		"[%lu.%06lu] DTMF digit %-4s '%c' "
-		"(val=%d, want_mute=%s want_event=%s, delta=%d msec)\n",
-		now.tv_sec, now.tv_usec, (key_down) ? "DOWN" : "UP", digit,
-		val, (want_mute) ? "yes" : "no", (want_event) ? "yes" : "no",
-		msec);
-#else		
 	now = ktime_get();
 	if (!dahdi_ktime_equal(priv->prev_key_time[portnum], ktime_set(0, 0)))
 		msec = ktime_ms_delta(now, priv->prev_key_time[portnum]);
@@ -1857,7 +1831,6 @@ static void process_dtmf(xpd_t *xpd, uint portnum, __u8 val)
 		(s64)ts.tv_sec, ts.tv_nsec * NSEC_PER_USEC,
 		(key_down) ? "DOWN" : "UP", digit, val,
 		(want_mute) ? "yes" : "no", (want_event) ? "yes" : "no", msec);
-#endif
 	/*
 	 * FIXME: we currently don't use the want_dtmf_mute until
 	 * we are sure about the logic in Asterisk native bridging.
@@ -2149,22 +2122,24 @@ static int proc_fxs_info_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, proc_fxs_info_show, PDE_DATA(inode));
 }
-#ifndef DAHDI_HAVE_PROC_OPS
-static const struct file_operations proc_fxs_info_ops = {
-	.owner		= THIS_MODULE,
-	.open		= proc_fxs_info_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-#else
+
+#ifdef DAHDI_HAVE_PROC_OPS
 static const struct proc_ops proc_fxs_info_ops = {
 	.proc_open		= proc_fxs_info_open,
 	.proc_read		= seq_read,
 	.proc_lseek		= seq_lseek,
-	.proc_release	= single_release,
+	.proc_release		= single_release,
+};
+#else
+static const struct file_operations proc_fxs_info_ops = {
+	.owner			= THIS_MODULE,
+	.open			= proc_fxs_info_open,
+	.read			= seq_read,
+	.llseek			= seq_lseek,
+	.release		= single_release,
 };
 #endif
+
 #ifdef	WITH_METERING
 static ssize_t proc_xpd_metering_write(struct file *file,
 		const char __user *buffer, size_t count, loff_t *offset)
@@ -2207,20 +2182,20 @@ static int proc_xpd_metering_open(struct inode *inode, struct file *file)
 	file->private_data = PDE_DATA(inode);
 }
 
-#ifndef DAHDI_HAVE_PROC_OPS
+#ifdef DAHDI_HAVE_PROC_OPS
+static const struct proc_ops proc_xpd_metering_ops = {
+	.proc_open	= proc_xpd_metering_open,
+	.proc_write	= proc_xpd_metering_write,
+	.proc_release	= single_release,
+};
+#else
 static const struct file_operations proc_xpd_metering_ops = {
 	.owner		= THIS_MODULE,
 	.open		= proc_xpd_metering_open,
 	.write		= proc_xpd_metering_write,
 	.release	= single_release,
 };
-#else
-static const struct proc_ops proc_xpd_metering_ops = {
-	.proc_open		= proc_xpd_metering_open,
-	.proc_write		= proc_xpd_metering_write,
-	.proc_release	= single_release,
-};
-#endif
+#endif /* DAHDI_HAVE_PROC_OPS */
 #endif
 #endif
 
