@@ -62,16 +62,6 @@
 #define netif_napi_add netif_napi_add_weight
 #endif
 
-/* Linux kernel 5.16 and greater has removed user-space headers from the kernel include path */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)
-#include <asm/types.h>
-#elif defined(RHEL_RELEASE_CODE) && LINUX_VERSION_CODE >= KERNEL_VERSION(5,14,0) && \
-              RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9,1)
-#include <asm/types.h>
-#else
-#include <stdbool.h>
-#endif
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0)
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
@@ -1563,10 +1553,12 @@ static inline void *PDE_DATA(const struct inode *inode)
 #endif
 #endif
 
+#ifdef RHEL_RELEASE_VERSION
 #if defined(RHEL_RELEASE_CODE) && LINUX_VERSION_CODE >= KERNEL_VERSION(5,14,0) && \
               RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9,1)
 #define netif_napi_add netif_napi_add_weight
 #define PDE_DATA(i)     pde_data(i)
+#endif
 #endif
 
 #ifndef TIMER_DATA_TYPE
