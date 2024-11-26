@@ -419,7 +419,7 @@ static int astribank_match(struct device *dev, struct device_driver *driver)
 	} while (0)
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)
 static int astribank_uevent(struct device *dev, struct kobj_uevent_env *kenv)
 #else
 static int astribank_uevent(const struct device *dev, struct kobj_uevent_env *kenv)

@@ -483,7 +483,7 @@ int __init dahdi_sysfs_chan_init(const struct file_operations *fops)
 	}
 	should_cleanup.channel_driver = 1;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 4, 0)
 	dahdi_class = class_create(THIS_MODULE, "dahdi");
 #else
 	dahdi_class = class_create("dahdi");
