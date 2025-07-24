@@ -1914,7 +1914,7 @@ static void hfc_handle_state(struct b4xxp_span *s)
 					 "setting T3 and jumping to F4\n",
 					 s->port + 1);
 			}
-			hfc_start_st(s);
+			hfc_force_st_state(b4, s, 4, 1);
 		}
 	}
 }
@@ -2348,7 +2348,7 @@ static int hdlc_tx_frame(struct b4xxp_span *bspan)
 	/* if we're ignoring TE red alarms and we are in alarm, restart the
 	 * S/T state machine */
 	if (bspan->te_mode && bspan->newalarm != 0)
-		hfc_start_st(bspan);
+		hfc_force_st_state(b4, bspan, 3, 1);
 
 	fifo = bspan->fifos[2];
 	res = dahdi_hdlc_getbuf(bspan->sigchan, buf, &size);
@@ -3958,7 +3958,7 @@ static DEFINE_PCI_DEVICE_TABLE(b4xx_ids) =
 	{0x1397, 0x16b8, 0x1397, 0xb562, 0, 0, (unsigned long)&hfc8s_BN},
 	{0x1397, 0x16b8, 0x1397, 0xb56b, 0, 0, (unsigned long)&hfc8s_BN},
 	{0x1397, 0x08b4, 0x1397, 0xb540, 0, 0, (unsigned long)&hfc4s_SW},
-	{0x1397, 0x08b4, 0x1397, 0x08b4, 0, 0, (unsigned long)&hfc4s_EV},
+	{0x1397, 0x08b4, 0x1397, 0x08b4, 0, 0, (unsigned long)&hfc4s_OV},
 	{0, }
 
 };
