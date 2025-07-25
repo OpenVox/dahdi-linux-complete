@@ -1768,7 +1768,7 @@ static void hfc_timer_expire(struct b4xxp_span *s, int t_no)
 	case HFC_T3:					/* switch to F3 (deactivated), resume auto mode */
 		hfc_stop_st(s);
 		if (persistentlayer1)
-			hfc_start_st(s);
+			hfc_force_st_state(b4, s, 3, 1);
 		break;
 	case HFC_T4:
 		hfc_handle_state(s);
@@ -1992,7 +1992,7 @@ static void hfc_start_st(struct b4xxp_span *s)
 
 /* start T1 if in NT mode, T3 if in TE mode */
 	if (s->te_mode) {
-		s->hfc_timers[HFC_T3] = b4->ticks + timer_3_ms;
+		s->hfc_timers[HFC_T3] = b4->ticks + 500;  //timer_3_ms;
 		s->hfc_timer_on[HFC_T3] = 1;
 		s->hfc_timer_on[HFC_T1] = 0;
 
